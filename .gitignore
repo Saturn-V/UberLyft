@@ -10,10 +10,6 @@ Thumbs.db
 
 # Other #
 .env
-
-logs
-*.log
-pids
 node_modules/
 .npm
 *.dat
