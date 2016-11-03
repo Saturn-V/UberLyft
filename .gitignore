@@ -1,3 +1,10 @@
+node_modules/
+
+# Other #
+.env
+.npm
+*.dat
+
 # OS generated files #
 ######################
 .DS_Store
@@ -7,9 +14,3 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Other #
-.env
-node_modules/
-.npm
-*.dat
