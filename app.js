@@ -33,10 +33,12 @@ const PAGE_ACCESS_TOKEN = (process.env.MESSENGER_PAGE_ACCESS_TOKEN);
 // URL where the app is running (include protocol). Used to point to scripts and
 // assets located at this address.
 const SERVER_URL = (process.env.MESSENGER_SERVER_URL);
-
+console.log("- HELLO WORLD");
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   console.error("Missing config values");
   process.exit(1);
+} else {
+    console.log("- VALUES VALIDATED");
 }
 
 /*
