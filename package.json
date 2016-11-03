@@ -1,0 +1,32 @@
+{
+  "name": "uber_lyft",
+  "version": "1.0.0",
+  "description": "Order an Uber or Lift through our Facebook Messenger app.",
+  "main": "app.js",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "config": "^1.24.0",
+    "crypto": "^0.0.3",
+    "express": "^4.14.0",
+    "https": "^1.0.0",
+    "request": "^2.76.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kojino/UberLyft.git"
+  },
+  "keywords": [
+    "Messenger",
+    "Bot"
+  ],
+  "author": "Kojin, Alex",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kojino/UberLyft/issues"
+  },
+  "homepage": "https://github.com/kojino/UberLyft#readme"
+}
