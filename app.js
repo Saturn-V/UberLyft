@@ -1,7 +1,20 @@
 /* jshint node: true, devel: true */
 'use strict';
 
-// process.env.NODE_ENV = "app";
+    uber.products.getAllForLocation(currLat, currLng, function(err, res) {
+      if (err) {
+        console.error(err);
+        response.sendStatus(500);
+      } else {
+        response.json(res);
+      }
+    });
+
+    uber.estimates.getPriceForRoute();
+
+
+
+
 
 const
   bodyParser = require('body-parser'),
@@ -9,9 +22,18 @@ const
   crypto = require('crypto'),
   express = require('express'),
   https = require('https'),
-  request = require('request');
+  request = require('request'),
+  Uber = require('node-uber'); // Capitalized i'm srry fam pls don't hate me for this
 
-// console.log('NODE_ENV: ' + config.util.getEnv('NODE_ENV'));
+  var uber = new Uber({
+      client_id: process.env.UBER_ID,
+      client_secret: process.env.UBER_SECRET,
+      server_token: process.env.UBER_TOKEN,
+      redirect_uri: 'REDIRECT URL',
+      name: process.env.UBER_BOT_NAME,
+      language: 'en_US', // optional, defaults to en_US
+      sandbox: true // optional, defaults to false
+  });
 
 var app = express();
 app.set('port', process.env.PORT || 5000);
@@ -153,6 +175,29 @@ app.get('/authorize', function(req, res) {
  * https://developers.facebook.com/docs/graph-api/webhooks#setup
  *
  */
+
+ // Uber API
+ app.get('/api/login', function(request, response) {
+     var url = uber.getAuthorizeUrl(['history','profile', 'request', 'places']);
+     response.redirect(url);
+ });
+
+ app.get('/api/callback', function(request, response) {
+     uber.authorization({
+         authorization_code: request.query.code
+     }, function(err, access_token, refresh_token) {
+         if (err) {
+             console.error(err);
+         } else {
+             // store the user id and associated access token
+             // redirect the user back to your actual app
+             response.redirect('/web/index.html');
+         }
+     });
+ });
+ // Uber API END
+
+
 function verifyRequestSignature(req, res, buf) {
   var signature = req.headers["x-hub-signature"];
 
@@ -202,6 +247,7 @@ function receivedAuthentication(event) {
   // When an authentication is received, we'll send a message back to the sender
   // to let them know it was successful.
   sendTextMessage(senderID, "Authentication successful");
+  sendGetStartedButton(senderID);
 }
 
 /*
@@ -244,6 +290,7 @@ function receivedMessage(event) {
       messageId, appId, metadata);
     return;
   } else if (quickReply) {
+
     var quickReplyPayload = quickReply.payload;
     console.log("Quick reply for message %s with payload %s", messageId, quickReplyPayload);
 
@@ -261,7 +308,7 @@ function receivedMessage(event) {
         // requestDestinationLocation(senderID);
 
         // Temporary Segue to ride type
-        sendTextMessage(senderID, "What type of transportation would you like?");
+        // sendTextMessage(senderID, "What type of transportation would you like?");
         sendUberOptions(senderID);
     } else {
         sendTextMessage(senderID, "Quick reply tapped");
@@ -345,16 +392,16 @@ function receivedMessage(event) {
  *
 */
 
-function requestCurrentLocation(event) {
+function requestCurrentLocation(recipientId) {
     var messageData = {
-        "recipient":{
-            "id":"USER_ID"
+        recipient: {
+            id: recipientId
         },
-        "message":{
-            "text":"Please share your location:",
-            "quick_replies":[
+        message:{
+            text: "Please share your location:",
+            quick_replies: [
                 {
-                    "content_type":"location",
+                    content_type: "location",
                 }
             ]
         }
@@ -363,16 +410,16 @@ function requestCurrentLocation(event) {
     callSendAPI(messageData);
 }
 
-function sendUberOptions(event) {
+function sendUberOptions(recipientId) {
     var messageData = {
-        "recipient":{
-            "id":"USER_ID"
+        recipient: {
+            id: recipientId
         },
-        "message":{
-            "text":"Please select your ride:",
-            "quick_replies":[
+        message: {
+            text: "Please select your ride:",
+            quick_replies: [
                 {
-                    "content_type":"location",
+                    content_type: "location",
                 }
             ]
         }
@@ -380,6 +427,26 @@ function sendUberOptions(event) {
 
     callSendAPI(messageData);
 }
+
+function sendGetStartedButton(recipientId) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+        setting_type: "call_to_actions",
+        thread_state: "new_thread",
+        call_to_actions: [
+            {
+                payload: "USER_DEFINED_PAYLOAD"
+            }
+        ]
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
 
 
 /*
