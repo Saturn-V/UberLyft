@@ -37,7 +37,7 @@ const VALIDATION_TOKEN = (process.env.MESSENGER_VALIDATION_TOKEN) ?
 
 // Generate a page access token for your page from the App Dashboard
 const PAGE_ACCESS_TOKEN = (process.env.MESSENGER_PAGE_ACCESS_TOKEN) ?
-    process.env.PAGE_ACCESS_TOKEN :
+    process.env.MESSENGER_PAGE_ACCESS_TOKEN :
     config.get('pageAccessToken');
 
 // URL where the app is running (include protocol). Used to point to scripts and
