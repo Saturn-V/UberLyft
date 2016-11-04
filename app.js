@@ -1,6 +1,8 @@
 /* jshint node: true, devel: true */
 'use strict';
 
+// process.env.NODE_ENV = "app";
+
 const
   bodyParser = require('body-parser'),
   config = require('config'),
@@ -8,6 +10,8 @@ const
   express = require('express'),
   https = require('https'),
   request = require('request');
+
+// console.log('NODE_ENV: ' + config.util.getEnv('NODE_ENV'));
 
 var app = express();
 app.set('port', process.env.PORT || 5000);
@@ -22,18 +26,28 @@ app.use(bodyParser.json());
  */
 
 // App Secret can be retrieved from the App Dashboard
-const APP_SECRET = (process.env.MESSENGER_APP_SECRET);
+const APP_SECRET = (process.env.MESSENGER_APP_SECRET) ?
+    process.env.MESSENGER_APP_SECRET :
+    config.get('appSecret');
 
 // Arbitrary value used to validate a webhook
-const VALIDATION_TOKEN = (process.env.MESSENGER_VALIDATION_TOKEN);
+const VALIDATION_TOKEN = (process.env.MESSENGER_VALIDATION_TOKEN) ?
+    process.env.MESSENGER_VALIDATION_TOKEN :
+    config.get('validationToken');
 
 // Generate a page access token for your page from the App Dashboard
-const PAGE_ACCESS_TOKEN = (process.env.MESSENGER_PAGE_ACCESS_TOKEN);
+const PAGE_ACCESS_TOKEN = (process.env.MESSENGER_PAGE_ACCESS_TOKEN) ?
+    process.env.PAGE_ACCESS_TOKEN :
+    config.get('pageAccessToken');
 
 // URL where the app is running (include protocol). Used to point to scripts and
 // assets located at this address.
-const SERVER_URL = (process.env.MESSENGER_SERVER_URL);
-console.log("- HELLO WORLD");
+// const SERVER_URL = (process.env.MESSENGER_SERVER_URL);
+const SERVER_URL = (process.env.SERVER_URL) ?
+    process.env.SERVER_URL :
+    config.get('serverURL');
+
+
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   console.error("Missing config values");
   process.exit(1);
@@ -48,6 +62,7 @@ if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
  */
 
 app.get('/webhook', function(req, res) {
+    console.log(res);
   if (req.query['hub.mode'] === 'subscribe' &&
       req.query['hub.verify_token'] === VALIDATION_TOKEN) {
     console.log("Validating webhook");
@@ -67,37 +82,36 @@ app.get('/webhook', function(req, res) {
  *
  */
 app.post('/webhook', function (req, res) {
-    console.log(res)
-  //
-  // var data = req.body;
-  // console.log('Message received');
-  //
-  // // Make sure this is a page subscription
-  // if (data.object == 'page') {
-  //   // Iterate over each entry
-  //   // There may be multiple if batched
-  //   data.entry.forEach(function(pageEntry) {
-  //     var pageID = pageEntry.id;
-  //     var timeOfEvent = pageEntry.time;
-  //
-  //     // Iterate over each messaging event
-  //     pageEntry.messaging.forEach(function(messagingEvent) {
-  //       if (messagingEvent.optin) {
-  //         receivedAuthentication(messagingEvent);
-  //       } else if (messagingEvent.message) {
-  //         receivedMessage(messagingEvent);
-  //       } else if (messagingEvent.delivery) {
-  //         receivedDeliveryConfirmation(messagingEvent);
-  //       } else if (messagingEvent.postback) {
-  //         receivedPostback(messagingEvent);
-  //       } else if (messagingEvent.read) {
-  //         receivedMessageRead(messagingEvent);
-  //       } else if (messagingEvent.account_linking) {
-  //         receivedAccountLink(messagingEvent);
-  //       } else {
-  //         console.log("Webhook received unknown messagingEvent: ", messagingEvent);
-  //       }
-  //     });
+  var data = req.body;
+
+  console.log('Message received -----------------------------------------------------------------------------');
+
+  // Make sure this is a page subscription
+  if (data.object == 'page') {
+    // Iterate over each entry
+    // There may be multiple if batched
+    data.entry.forEach(function(pageEntry) {
+      var pageID = pageEntry.id;
+      var timeOfEvent = pageEntry.time;
+
+      // Iterate over each messaging event
+      pageEntry.messaging.forEach(function(messagingEvent) {
+        if (messagingEvent.optin) {
+          receivedAuthentication(messagingEvent);
+        } else if (messagingEvent.message) {
+          receivedMessage(messagingEvent);
+        } else if (messagingEvent.delivery) {
+          receivedDeliveryConfirmation(messagingEvent);
+        } else if (messagingEvent.postback) {
+          receivedPostback(messagingEvent);
+        } else if (messagingEvent.read) {
+          receivedMessageRead(messagingEvent);
+        } else if (messagingEvent.account_linking) {
+          receivedAccountLink(messagingEvent);
+        } else {
+          console.log("Webhook received unknown messagingEvent: ", messagingEvent);
+        }
+      });
     });
 
     // Assume all went well.
