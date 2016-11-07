@@ -1,16 +1,16 @@
 /* jshint node: true, devel: true */
 'use strict';
 
-uber.products.getAllForLocation(currLat, currLng, function(err, res) {
-  if (err) {
-    console.error(err);
-    response.sendStatus(500);
-  } else {
-    response.json(res);
-  }
-});
-
-uber.estimates.getPriceForRoute();
+// uber.products.getAllForLocation(currLat, currLng, function(err, res) {
+//   if (err) {
+//     console.error(err);
+//     response.sendStatus(500);
+//   } else {
+//     response.json(res);
+//   }
+// });
+//
+// uber.estimates.getPriceForRoute();
 
 
 
