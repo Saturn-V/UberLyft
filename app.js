@@ -1,16 +1,16 @@
 /* jshint node: true, devel: true */
 'use strict';
 
-    uber.products.getAllForLocation(currLat, currLng, function(err, res) {
-      if (err) {
-        console.error(err);
-        response.sendStatus(500);
-      } else {
-        response.json(res);
-      }
-    });
+uber.products.getAllForLocation(currLat, currLng, function(err, res) {
+  if (err) {
+    console.error(err);
+    response.sendStatus(500);
+  } else {
+    response.json(res);
+  }
+});
 
-    uber.estimates.getPriceForRoute();
+uber.estimates.getPriceForRoute();
 
 
 
@@ -247,7 +247,6 @@ function receivedAuthentication(event) {
   // When an authentication is received, we'll send a message back to the sender
   // to let them know it was successful.
   sendTextMessage(senderID, "Authentication successful");
-  sendGetStartedButton(senderID);
 }
 
 /*
@@ -428,26 +427,113 @@ function sendUberOptions(recipientId) {
     callSendAPI(messageData);
 }
 
-function sendGetStartedButton(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-        setting_type: "call_to_actions",
-        thread_state: "new_thread",
-        call_to_actions: [
-            {
-                payload: "USER_DEFINED_PAYLOAD"
-            }
-        ]
-    }
-  };
+function sendGetStartedMessage(recipientId) {
+    var messageData = {
+        recipient: {
+            id: recipientId
+        },
+        message: {
+            text: "Welcome to UberLyft! Lets get you setup so that you can seamlessly call an Uber or a Lyft later!"
+        }
+    };
 
-  callSendAPI(messageData);
+    callSendAPI(messageData);
 }
 
+function setupUber(recipientId) {
+    var messageData = {
+        recipient: {
+            id: recipientId
+        },
+        message: {
+            text: "Let's verify your Uber account.",
+            quick_replies: [
+                {
+                    "content_type": "text",
+                    "title": "Uber",
+                    "payload":"VERIFY_UBER_BUTTON"
+                }
+            ]
+        }
+    };
 
+    callSendAPI(messageData);
+}
+
+function setupLyft(recipientId) {
+    var messageData = {
+        recipient: {
+            id: recipientId
+        },
+        message: {
+            text: "Now lets verify your Lyft account.",
+            quick_replies: [
+                {
+                    "content_type": "text",
+                    "title": "Lyft",
+                    "payload":"VERIFY_LYFT_BUTTON"
+                }
+            ]
+        }
+    };
+
+    callSendAPI(messageData);
+}
+
+app.get('/api/callback', function(request, response) {
+   uber.authorization({
+     authorization_code: request.query.code
+   }, function(err, access_token, refresh_token) {
+     if (err) {
+       console.error(err);
+     } else {
+       // store the user id and associated access token
+       // redirect the user back to your actual app
+       // TODO
+       response.redirect('/web/index.html');
+     }
+   });
+});
+
+
+/*
+* Postback Event
+*
+* This event is called when a postback is tapped on a Structured Message.
+* https://developers.facebook.com/docs/messenger-platform/webhook-reference/postback-received
+*
+*/
+function receivedPostback(event) {
+    var senderID = event.sender.id;
+    var recipientID = event.recipient.id;
+    var timeOfPostback = event.timestamp;
+
+    // The 'payload' param is a developer-defined field which is set in a postback
+    // button for Structured Messages.
+    var payload = event.postback.payload;
+
+    console.log("Received postback for user %d and page %d with payload '%s' " + "at %d", senderID, recipientID, payload, timeOfPostback);
+
+    // When a postback is called, we'll send a message back to the sender to
+    // let them know it was successful
+    if (payload == "GET_STARTED_BUTTON") {
+        sendGetStartedMessage(senderID);
+        setupUber(senderID);
+    } else {
+        sendTextMessage(senderID, "Postback called");
+    }
+
+    if (payload == "VERIFY_UBER_BUTTON") {
+        var url = uber.getAuthorizeUrl(['history', 'profile', 'request', 'places']);
+        response.redirect(url);
+        // Verify Uber account and let user know it's done
+    } else if (payload == "VERIFY_LYFT_BUTTON") {
+        // Verify Lyft account and let user know it's done
+        // Then move on to next part of user story
+    }
+
+
+}
 
 /*
  * Delivery Confirmation Event
@@ -475,29 +561,6 @@ function receivedDeliveryConfirmation(event) {
 }
 
 
-/*
- * Postback Event
- *
- * This event is called when a postback is tapped on a Structured Message.
- * https://developers.facebook.com/docs/messenger-platform/webhook-reference/postback-received
- *
- */
-function receivedPostback(event) {
-  var senderID = event.sender.id;
-  var recipientID = event.recipient.id;
-  var timeOfPostback = event.timestamp;
-
-  // The 'payload' param is a developer-defined field which is set in a postback
-  // button for Structured Messages.
-  var payload = event.postback.payload;
-
-  console.log("Received postback for user %d and page %d with payload '%s' " +
-    "at %d", senderID, recipientID, payload, timeOfPostback);
-
-  // When a postback is called, we'll send a message back to the sender to
-  // let them know it was successful
-  sendTextMessage(senderID, "Postback called");
-}
 
 /*
  * Message Read Event
