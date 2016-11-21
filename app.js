@@ -1,21 +1,6 @@
 /* jshint node: true, devel: true */
 'use strict';
 
-// uber.products.getAllForLocation(currLat, currLng, function(err, res) {
-//   if (err) {
-//     console.error(err);
-//     response.sendStatus(500);
-//   } else {
-//     response.json(res);
-//   }
-// });
-//
-// uber.estimates.getPriceForRoute();
-
-
-
-
-
 const
   bodyParser = require('body-parser'),
   config = require('config'),
@@ -25,15 +10,27 @@ const
   request = require('request'),
   Uber = require('node-uber'); // Capitalized i'm srry fam pls don't hate me for this
 
-  var uber = new Uber({
-      client_id: process.env.UBER_ID,
-      client_secret: process.env.UBER_SECRET,
-      server_token: process.env.UBER_TOKEN,
-      redirect_uri: 'REDIRECT URL',
-      name: process.env.UBER_BOT_NAME,
-      language: 'en_US', // optional, defaults to en_US
-      sandbox: true // optional, defaults to false
-  });
+var uber = new Uber({
+    client_id: (process.env.UBER_ID) ?
+      process.env.UBER_ID :
+      config.get('uberId'),
+
+    client_secret: (process.env.UBER_SECRET) ?
+      process.env.UBER_SECRET :
+      config.get('uberSecret'),
+
+    server_token: (process.env.UBER_TOKEN) ?
+      process.env.UBER_TOKEN :
+      config.get('uberToken'),
+
+    redirect_uri: 'https://9dcbd48d.ngrok.io/api/callback',
+
+    name: (process.env.UBER_BOT_NAME) ?
+      process.env.UBER_BOT_NAME :
+      config.get('uberBotName'),
+
+    language: 'en_US' // optional, defaults to en_US
+});
 
 var app = express();
 app.set('port', process.env.PORT || 5000);
@@ -77,12 +74,6 @@ if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
     console.log("- VALUES VALIDATED");
 }
 
-/*
- * Use your own validation token. Check that the token used in the Webhook
- * setup is the same token used here.
- *
- */
-
 app.get('/webhook', function(req, res) {
     console.log(res);
   if (req.query['hub.mode'] === 'subscribe' &&
@@ -95,18 +86,12 @@ app.get('/webhook', function(req, res) {
   }
 });
 
-
-/*
- * All callbacks for Messenger are POST-ed. They will be sent to the same
- * webhook. Be sure to subscribe your app to your page to receive callbacks
- * for your page.
- * https://developers.facebook.com/docs/messenger-platform/product-overview/setup#subscribe_app
- *
- */
 app.post('/webhook', function (req, res) {
   var data = req.body;
 
+  console.log('');
   console.log('Message received -----------------------------------------------------------------------------');
+  console.log('');
 
   // Make sure this is a page subscription
   if (data.object == 'page') {
@@ -144,11 +129,6 @@ app.post('/webhook', function (req, res) {
   }
 });
 
-/*
- * This path is used for account linking. The account linking call-to-action
- * (sendAccountLinking) is pointed to this URL.
- *
- */
 app.get('/authorize', function(req, res) {
   var accountLinkingToken = req.query.account_linking_token;
   var redirectURI = req.query.redirect_uri;
@@ -167,18 +147,11 @@ app.get('/authorize', function(req, res) {
   });
 });
 
-/*
- * Verify that the callback came from Facebook. Using the App Secret from
- * the App Dashboard, we can verify the signature that is sent with each
- * callback in the x-hub-signature field, located in the header.
- *
- * https://developers.facebook.com/docs/graph-api/webhooks#setup
- *
- */
-
  // Uber API
  app.get('/api/login', function(request, response) {
-     var url = uber.getAuthorizeUrl(['history','profile', 'request', 'places']);
+     console.log("Veryfying ya user m8");
+     var url = uber.getAuthorizeUrl(['places']);
+     console.log(url)
      response.redirect(url);
  });
 
@@ -189,14 +162,20 @@ app.get('/authorize', function(req, res) {
          if (err) {
              console.error(err);
          } else {
+             console.log(access_token);
+             console.log(refresh_token);
+
              // store the user id and associated access token
              // redirect the user back to your actual app
-             response.redirect('/web/index.html');
+             // TODO
+             console.log("Authentication successful --------------------------------->");
+             response.redirect(' https://www.messenger.com/closeWindow/?image_url=IMAGE_URL&display_text=DISPLAY_TEXT');
+
          }
      });
  });
- // Uber API END
 
+ // Uber API END
 
 function verifyRequestSignature(req, res, buf) {
   var signature = req.headers["x-hub-signature"];
@@ -220,14 +199,6 @@ function verifyRequestSignature(req, res, buf) {
   }
 }
 
-/*
- * Authorization Event
- *
- * The value for 'optin.ref' is defined in the entry point. For the "Send to
- * Messenger" plugin, it is the 'data-ref' field. Read more at
- * https://developers.facebook.com/docs/messenger-platform/webhook-reference/authentication
- *
- */
 function receivedAuthentication(event) {
   var senderID = event.sender.id;
   var recipientID = event.recipient.id;
@@ -249,20 +220,6 @@ function receivedAuthentication(event) {
   sendTextMessage(senderID, "Authentication successful");
 }
 
-/*
- * Message Event
- *
- * This event is called when a message is sent to your page. The 'message'
- * object format can vary depending on the kind of message that was received.
- * Read more at https://developers.facebook.com/docs/messenger-platform/webhook-reference/message-received
- *
- * For this example, we're going to echo any text that we get. If we get some
- * special keywords ('button', 'generic', 'receipt'), then we'll send back
- * examples of those bubbles to illustrate the special message bubbles we've
- * created. If we receive a message with an attachment (image, video, audio),
- * then we'll simply confirm that we've received the attachment.
- *
- */
 function receivedMessage(event) {
   var senderID = event.sender.id;
   var recipientID = event.recipient.id;
@@ -310,7 +267,11 @@ function receivedMessage(event) {
         // sendTextMessage(senderID, "What type of transportation would you like?");
         sendUberOptions(senderID);
     } else {
-        sendTextMessage(senderID, "Quick reply tapped");
+        if (messageText == 'Uber') {
+            setupUber(senderID);
+        } else {
+            sendTextMessage(senderID, "Quick reply tapped");
+        }
     }
 
     return;
@@ -386,11 +347,6 @@ function receivedMessage(event) {
   }
 }
 
-/*
- * Uber Story
- *
-*/
-
 function requestCurrentLocation(recipientId) {
     var messageData = {
         recipient: {
@@ -440,24 +396,28 @@ function sendGetStartedMessage(recipientId) {
     callSendAPI(messageData);
 }
 
-function setupUber(recipientId) {
+function setupUber(recipientId, callback) {
     var messageData = {
-        recipient: {
-            id: recipientId
-        },
-        message: {
+      recipient: {
+        id: recipientId
+      },
+      message: {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
             text: "Let's verify your Uber account.",
-            quick_replies: [
-                {
-                    "content_type": "text",
-                    "title": "Uber",
-                    "payload":"VERIFY_UBER_BUTTON"
-                }
-            ]
+            buttons:[{
+              type: "web_url",
+              url: "https://9dcbd48d.ngrok.io/api/login",
+              title: "Verify Uber Account"
+            }]
+          }
         }
+      }
     };
 
-    callSendAPI(messageData);
+    callSendAPI(messageData, callback);
 }
 
 function setupLyft(recipientId) {
@@ -480,29 +440,10 @@ function setupLyft(recipientId) {
     callSendAPI(messageData);
 }
 
-app.get('/api/callback', function(request, response) {
-   uber.authorization({
-     authorization_code: request.query.code
-   }, function(err, access_token, refresh_token) {
-     if (err) {
-       console.error(err);
-     } else {
-       // store the user id and associated access token
-       // redirect the user back to your actual app
-       // TODO
-       response.redirect('/web/index.html');
-     }
-   });
-});
+function defaultCallback() {
+  console.log("Default Callback ran------------------------------------------------------");
+}
 
-
-/*
-* Postback Event
-*
-* This event is called when a postback is tapped on a Structured Message.
-* https://developers.facebook.com/docs/messenger-platform/webhook-reference/postback-received
-*
-*/
 function receivedPostback(event) {
     var senderID = event.sender.id;
     var recipientID = event.recipient.id;
@@ -517,31 +458,21 @@ function receivedPostback(event) {
     // When a postback is called, we'll send a message back to the sender to
     // let them know it was successful
     if (payload == "GET_STARTED_BUTTON") {
-        sendGetStartedMessage(senderID);
-        setupUber(senderID);
-    } else {
-        sendTextMessage(senderID, "Postback called");
-    }
-
-    if (payload == "VERIFY_UBER_BUTTON") {
-        var url = uber.getAuthorizeUrl(['history', 'profile', 'request', 'places']);
-        response.redirect(url);
-        // Verify Uber account and let user know it's done
+        // sendGetStartedMessage(senderID);
+        console.log("GET STARTED INITIATED, SETTING UP UBER AUTH---------------------------------------------------------------------");
+        // STEP 1
+        setupUber(senderID, requestCurrentLocation);
     } else if (payload == "VERIFY_LYFT_BUTTON") {
         // Verify Lyft account and let user know it's done
         // Then move on to next part of user story
+    } else {
+        sendTextMessage(senderID, "Postback called");
     }
-
-
 }
 
-/*
- * Delivery Confirmation Event
- *
- * This event is sent to confirm the delivery of a message. Read more about
- * these fields at https://developers.facebook.com/docs/messenger-platform/webhook-reference/message-delivered
- *
- */
+//
+// REDUNDANT CODE BELOW
+//
 function receivedDeliveryConfirmation(event) {
   var senderID = event.sender.id;
   var recipientID = event.recipient.id;
@@ -560,445 +491,7 @@ function receivedDeliveryConfirmation(event) {
   console.log("All message before %d were delivered.", watermark);
 }
 
-
-
-/*
- * Message Read Event
- *
- * This event is called when a previously-sent message has been read.
- * https://developers.facebook.com/docs/messenger-platform/webhook-reference/message-read
- *
- */
-function receivedMessageRead(event) {
-  var senderID = event.sender.id;
-  var recipientID = event.recipient.id;
-
-  // All messages before watermark (a timestamp) or sequence have been seen.
-  var watermark = event.read.watermark;
-  var sequenceNumber = event.read.seq;
-
-  console.log("Received message read event for watermark %d and sequence " +
-    "number %d", watermark, sequenceNumber);
-}
-
-/*
- * Account Link Event
- *
- * This event is called when the Link Account or UnLink Account action has been
- * tapped.
- * https://developers.facebook.com/docs/messenger-platform/webhook-reference/account-linking
- *
- */
-function receivedAccountLink(event) {
-  var senderID = event.sender.id;
-  var recipientID = event.recipient.id;
-
-  var status = event.account_linking.status;
-  var authCode = event.account_linking.authorization_code;
-
-  console.log("Received account link event with for user %d with status %s " +
-    "and auth code %s ", senderID, status, authCode);
-}
-
-/*
- * Send an image using the Send API.
- *
- */
-function sendImageMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "image",
-        payload: {
-          url: SERVER_URL + "/assets/rift.png"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a Gif using the Send API.
- *
- */
-function sendGifMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "image",
-        payload: {
-          url: SERVER_URL + "/assets/instagram_logo.gif"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send audio using the Send API.
- *
- */
-function sendAudioMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "audio",
-        payload: {
-          url: SERVER_URL + "/assets/sample.mp3"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a video using the Send API.
- *
- */
-function sendVideoMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "video",
-        payload: {
-          url: SERVER_URL + "/assets/allofus480.mov"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a file using the Send API.
- *
- */
-function sendFileMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "file",
-        payload: {
-          url: SERVER_URL + "/assets/test.txt"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a text message using the Send API.
- *
- */
-function sendTextMessage(recipientId, messageText) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      text: messageText,
-      metadata: "DEVELOPER_DEFINED_METADATA"
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a button message using the Send API.
- *
- */
-function sendButtonMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "button",
-          text: "This is test text",
-          buttons:[{
-            type: "web_url",
-            url: "https://www.oculus.com/en-us/rift/",
-            title: "Open Web URL"
-          }, {
-            type: "postback",
-            title: "Trigger Postback",
-            payload: "DEVELOPER_DEFINED_PAYLOAD"
-          }, {
-            type: "phone_number",
-            title: "Call Phone Number",
-            payload: "+16505551234"
-          }]
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a Structured Message (Generic Message type) using the Send API.
- *
- */
-function sendGenericMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "generic",
-          elements: [{
-            title: "rift",
-            subtitle: "Next-generation virtual reality",
-            item_url: "https://www.oculus.com/en-us/rift/",
-            image_url: SERVER_URL + "/assets/rift.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/rift/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for first bubble",
-            }],
-          }, {
-            title: "touch",
-            subtitle: "Your Hands, Now in VR",
-            item_url: "https://www.oculus.com/en-us/touch/",
-            image_url: SERVER_URL + "/assets/touch.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/touch/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for second bubble",
-            }]
-          }]
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a receipt message using the Send API.
- *
- */
-function sendReceiptMessage(recipientId) {
-  // Generate a random receipt ID as the API requires a unique ID
-  var receiptId = "order" + Math.floor(Math.random()*1000);
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message:{
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "receipt",
-          recipient_name: "Peter Chang",
-          order_number: receiptId,
-          currency: "USD",
-          payment_method: "Visa 1234",
-          timestamp: "1428444852",
-          elements: [{
-            title: "Oculus Rift",
-            subtitle: "Includes: headset, sensor, remote",
-            quantity: 1,
-            price: 599.00,
-            currency: "USD",
-            image_url: SERVER_URL + "/assets/riftsq.png"
-          }, {
-            title: "Samsung Gear VR",
-            subtitle: "Frost White",
-            quantity: 1,
-            price: 99.99,
-            currency: "USD",
-            image_url: SERVER_URL + "/assets/gearvrsq.png"
-          }],
-          address: {
-            street_1: "1 Hacker Way",
-            street_2: "",
-            city: "Menlo Park",
-            postal_code: "94025",
-            state: "CA",
-            country: "US"
-          },
-          summary: {
-            subtotal: 698.99,
-            shipping_cost: 20.00,
-            total_tax: 57.67,
-            total_cost: 626.66
-          },
-          adjustments: [{
-            name: "New Customer Discount",
-            amount: -50
-          }, {
-            name: "$100 Off Coupon",
-            amount: -100
-          }]
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a message with Quick Reply buttons.
- *
- */
-function sendQuickReply(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      text: "What's your favorite movie genre?",
-      quick_replies: [
-        {
-          "content_type":"text",
-          "title":"Action",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_ACTION"
-        },
-        {
-          "content_type":"text",
-          "title":"Comedy",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_COMEDY"
-        },
-        {
-          "content_type":"text",
-          "title":"Drama",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_DRAMA"
-        }
-      ]
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a read receipt to indicate the message has been read
- *
- */
-function sendReadReceipt(recipientId) {
-  console.log("Sending a read receipt to mark message as seen");
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    sender_action: "mark_seen"
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Turn typing indicator on
- *
- */
-function sendTypingOn(recipientId) {
-  console.log("Turning typing indicator on");
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    sender_action: "typing_on"
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Turn typing indicator off
- *
- */
-function sendTypingOff(recipientId) {
-  console.log("Turning typing indicator off");
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    sender_action: "typing_off"
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a message with the account linking call-to-action
- *
- */
-function sendAccountLinking(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "button",
-          text: "Welcome. Link your account.",
-          buttons:[{
-            type: "account_link",
-            url: SERVER_URL + "/authorize"
-          }]
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Call the Send API. The message data goes in the body. If successful, we'll
- * get the message id in a response
- *
- */
-function callSendAPI(messageData) {
+function callSendAPI(messageData, callback) {
   request({
     uri: 'https://graph.facebook.com/v2.6/me/messages',
     qs: { access_token: PAGE_ACCESS_TOKEN },
@@ -1016,6 +509,7 @@ function callSendAPI(messageData) {
       } else {
       console.log("Successfully called Send API for recipient %s",
         recipientId);
+
       }
     } else {
       console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
